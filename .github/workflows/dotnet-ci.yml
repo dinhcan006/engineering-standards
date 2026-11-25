@@ -25,9 +25,22 @@ jobs:
         working-directory: ${{ inputs.working-directory }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          token: ${{ secrets.STANDARDS_TOKEN || github.token }}
+
+      # Code dự án tải bằng quyền mặc định của GitHub. Luật chung (submodule standards/) nằm ở
+      # repo riêng tư khác nên cần STANDARDS_TOKEN (token CHỈ đọc được repo engineering-standards).
+      # Token chỉ dùng cho lệnh này, không lưu lại; dòng extraheader= bỏ header của github.token
+      # để git dùng đúng token này khi tải submodule.
+      - name: Lấy luật chung (submodule standards/)
+        working-directory: .
+        env:
+          STANDARDS_TOKEN: ${{ secrets.STANDARDS_TOKEN }}
+        run: |
+          if [ -n "$STANDARDS_TOKEN" ]; then
+            AUTH="url.https://x-access-token:${STANDARDS_TOKEN}@github.com/.insteadOf=https://github.com/"
+            git -c "http.https://github.com/.extraheader=" -c "$AUTH" submodule update --init --recursive
+          else
+            git submodule update --init --recursive
+          fi
 
       - uses: actions/setup-dotnet@v4
         with:
