@@ -1,0 +1,39 @@
+is_global = true
+
+# =====================================================================
+# Luật phân tích tĩnh dùng chung cho mọi dự án .NET.
+# Quy trình: mỗi góp ý review lặp lại -> tìm luật CA/IDE tương ứng
+# -> nâng lên error ở đây. Xem docs/REVIEW-TO-RULE.md
+# =====================================================================
+
+# --- Lỗi bị cấm (vi phạm BannedSymbols.txt) ---
+dotnet_diagnostic.RS0030.severity = error
+
+# --- Async / hiệu năng ---
+# Gọi bản async khi đang trong hàm async (bắt .Result, .Wait(), đọc file đồng bộ...)
+dotnet_diagnostic.CA1849.severity = error
+# Truyền CancellationToken xuống các hàm được gọi
+dotnet_diagnostic.CA2016.severity = error
+# ASP.NET Core không cần ConfigureAwait(false)
+dotnet_diagnostic.CA2007.severity = none
+# Không dùng Count() > 0 khi có Any()
+dotnet_diagnostic.CA1827.severity = error
+dotnet_diagnostic.CA1829.severity = error
+
+# --- Bảo mật ---
+# SQL ghép chuỗi
+dotnet_diagnostic.CA2100.severity = error
+# Không dùng thuật toán băm/mã hoá yếu
+dotnet_diagnostic.CA5350.severity = error
+dotnet_diagnostic.CA5351.severity = error
+
+# --- Độ tin cậy ---
+# Dispose đối tượng IDisposable
+dotnet_diagnostic.CA2000.severity = error
+# Không bắt Exception chung chung rồi nuốt lỗi
+dotnet_diagnostic.CA1031.severity = warning
+
+# --- Nới lỏng những luật gây nhiễu, không mang lại giá trị cho team ---
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1062.severity = none
+dotnet_diagnostic.CA1848.severity = suggestion

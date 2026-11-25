@@ -1,0 +1,55 @@
+# Workflow dùng chung: lint + typecheck + build cho Next.js.
+name: web-ci
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        type: string
+        default: web
+      node-version:
+        type: string
+        default: "22"
+    secrets:
+      STANDARDS_TOKEN:
+        required: false
+
+jobs:
+  lint-build:
+    name: lint-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.STANDARDS_TOKEN || github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+
+      - run: npm ci
+
+      - name: Chặn bỏ qua test
+        run: |
+          if grep -rnE '\b(test|it|describe)\.(skip|only|fixme)\(' --include=*.ts --include=*.tsx e2e src 2>/dev/null; then
+            echo "::error::Không được skip/only test."
+            exit 1
+          fi
+
+      - name: Lint (không cho phép cảnh báo)
+        run: npx eslint . --max-warnings=0
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"

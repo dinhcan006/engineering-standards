@@ -1,0 +1,56 @@
+# Workflow dùng chung: build + phân tích tĩnh + test cho API .NET.
+# Dự án gọi: uses: <ORG>/engineering-standards/.github/workflows/dotnet-ci.yml@main
+name: dotnet-ci
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        type: string
+        default: api
+      dotnet-version:
+        type: string
+        default: "10.0.x"
+    secrets:
+      STANDARDS_TOKEN:
+        required: false
+
+jobs:
+  build-test:
+    name: build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.STANDARDS_TOKEN || github.token }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Chặn tắt cảnh báo / bỏ qua test
+        run: |
+          if grep -rnE '#pragma warning disable|SuppressMessage\(|Skip *= *"' --include=*.cs --exclude-dir=Migrations --exclude-dir=bin --exclude-dir=obj src tests; then
+            echo "::error::Không được tắt cảnh báo hoặc bỏ qua test. Sửa code cho đúng luật, hoặc đề xuất đổi luật trong engineering-standards."
+            exit 1
+          fi
+
+      - run: dotnet restore
+
+      - name: Build (cảnh báo = lỗi, gồm luật kiến trúc và API bị cấm)
+        run: dotnet build --no-restore -c Release -warnaserror
+
+      - name: Test (unit + architecture + integration với Testcontainers)
+        run: dotnet test --no-build -c Release --logger trx --results-directory TestResults
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dotnet-test-results
+          path: ${{ inputs.working-directory }}/TestResults
+          if-no-files-found: ignore

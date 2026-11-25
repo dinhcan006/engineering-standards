@@ -1,0 +1,107 @@
+# Workflow dùng chung: dựng toàn bộ stack bằng Docker, chạy E2E như người dùng thật,
+# quay video + chụp ảnh + đo CPU/RAM container, rồi đăng link demo vào PR.
+# Đây là thứ con người xem thay cho việc đọc từng dòng code.
+name: e2e
+
+on:
+  workflow_call:
+    inputs:
+      compose-file:
+        type: string
+        default: docker-compose.e2e.yml
+      web-directory:
+        type: string
+        default: web
+      base-url:
+        type: string
+        default: http://localhost:3000
+      api-url:
+        type: string
+        default: http://localhost:8080
+    secrets:
+      STANDARDS_TOKEN:
+        required: false
+
+jobs:
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.STANDARDS_TOKEN || github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ${{ inputs.web-directory }}/package-lock.json
+
+      - name: Cài Playwright
+        working-directory: ${{ inputs.web-directory }}
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Dựng stack (SQL Server, Redis, API, Web)
+        run: |
+          docker compose -f ${{ inputs.compose-file }} up -d --build --wait --wait-timeout 300
+          for i in $(seq 1 60); do
+            if curl -fsS "${{ inputs.api-url }}/health" >/dev/null && curl -fsS "${{ inputs.base-url }}" >/dev/null; then
+              echo "Stack sẵn sàng"; exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::API hoặc Web không lên sau 120 giây"
+          docker compose -f ${{ inputs.compose-file }} logs --no-color --tail 200
+          exit 1
+
+      - name: Chạy E2E
+        working-directory: ${{ inputs.web-directory }}
+        env:
+          CI: "true"
+          E2E_BASE_URL: ${{ inputs.base-url }}
+          E2E_API_URL: ${{ inputs.api-url }}
+        run: npx playwright test
+
+      - name: Đo CPU / RAM container
+        if: always()
+        run: docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" | tee docker-stats.txt
+
+      - name: Lưu log container khi lỗi
+        if: failure()
+        run: docker compose -f ${{ inputs.compose-file }} logs --no-color > compose-logs.txt
+
+      - name: Tải lên ảnh / video demo
+        id: demo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-${{ github.run_id }}
+          path: |
+            ${{ inputs.web-directory }}/test-results
+            ${{ inputs.web-directory }}/playwright-report
+            docker-stats.txt
+            compose-logs.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Đăng link demo vào PR
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          STATS=$(cat docker-stats.txt 2>/dev/null || echo "không có dữ liệu")
+          BODY=$(printf '### 🎬 Demo E2E: %s\n\nẢnh, video từng test và báo cáo Playwright: %s\n\n**Tài nguyên container sau khi chạy test:**\n```\n%s\n```\n' \
+            "${{ job.status }}" "${{ steps.demo.outputs.artifact-url }}" "$STATS")
+          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" \
+            --edit-last --create-if-none --body "$BODY"
+
+      - name: Dọn dẹp
+        if: always()
+        run: docker compose -f ${{ inputs.compose-file }} down -v

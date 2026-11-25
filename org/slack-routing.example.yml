@@ -1,0 +1,18 @@
+# Chỉ cần file này nếu bạn TỰ VIẾT bot Slack (kiểu "Boss").
+# Nếu dùng Claude Code in Slack có sẵn: mỗi dự án một kênh, và ghi rõ repo trong tin nhắn,
+# ví dụ: "@Claude repo acme/shop-api: thêm bộ lọc theo ngày cho trang đơn hàng".
+#
+# Quy ước: mỗi dự án 1 kênh. Nhắn trong kênh nào -> agent làm trên repo đó.
+channels:
+  "#proj-shop":
+    repo: dinhcan006/shop
+    default_branch: main
+  "#proj-crm":
+    repo: dinhcan006/crm
+    default_branch: main
+
+defaults:
+  # Agent tự bật auto-merge khi PR không chạm vùng bảo vệ
+  auto_merge: true
+  # Gửi lại ảnh/video demo vào thread Slack khi CI xong
+  post_demo_to_thread: true

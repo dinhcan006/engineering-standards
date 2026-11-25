@@ -1,0 +1,26 @@
+<Project>
+  <!--
+    Chuẩn chung cho MỌI dự án .NET của công ty.
+    Được import từ api/Directory.Build.props của từng dự án (qua submodule standards/).
+    Sửa file này = thay đổi luật cho tất cả dự án. Chỉ lead được duyệt.
+  -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Cảnh báo = lỗi. Agent không thể "lờ đi" cảnh báo để PR qua được. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Mức độ nghiêm trọng của từng luật phân tích tĩnh -->
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)standards.globalconfig" />
+
+    <!-- Danh sách API bị cấm (mỗi góp ý review lặp lại -> thêm 1 dòng vào đây) -->
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
+  </ItemGroup>
+</Project>

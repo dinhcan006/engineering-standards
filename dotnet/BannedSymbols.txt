@@ -1,0 +1,15 @@
+P:System.DateTime.Now;Inject TimeProvider để code test được và thống nhất múi giờ
+P:System.DateTime.UtcNow;Inject TimeProvider (TimeProvider.GetUtcNow())
+P:System.DateTimeOffset.Now;Inject TimeProvider
+P:System.DateTimeOffset.UtcNow;Inject TimeProvider (TimeProvider.GetUtcNow())
+M:System.Threading.Thread.Sleep(System.Int32);Không block thread - dùng await Task.Delay(..., cancellationToken)
+M:System.Threading.Thread.Sleep(System.TimeSpan);Không block thread - dùng await Task.Delay(..., cancellationToken)
+P:System.Threading.Tasks.Task`1.Result;Không block async (gây deadlock/cạn thread pool) - dùng await
+M:System.Threading.Tasks.Task.Wait;Không block async - dùng await
+M:System.Threading.Tasks.Task.Wait(System.Int32);Không block async - dùng await
+M:System.Threading.Tasks.Task.Wait(System.TimeSpan);Không block async - dùng await
+M:System.GC.Collect;Không gọi GC thủ công
+T:System.Data.SqlClient.SqlConnection;Thư viện cũ - truy cập DB qua EF Core / repository ở tầng Infrastructure
+M:Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.ExecuteSqlRaw(Microsoft.EntityFrameworkCore.Infrastructure.DatabaseFacade,System.String,System.Object[]);Dễ SQL injection - dùng ExecuteSql với FormattableString
+M:Microsoft.EntityFrameworkCore.RelationalQueryableExtensions.FromSqlRaw``1(Microsoft.EntityFrameworkCore.DbSet{``0},System.String,System.Object[]);Dễ SQL injection - dùng FromSql với FormattableString
+M:System.Environment.GetEnvironmentVariable(System.String);Đọc cấu hình qua IOptions<T>, không đọc biến môi trường trực tiếp
